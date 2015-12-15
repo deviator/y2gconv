@@ -1,0 +1,7 @@
+name "y2gconv"
+targetPath "bin"
+description "Yandex to Google campany converter."
+copyright "Copyright © 2015, deviator"
+authors "deviator"
+
+dependency "gtk-d" version="~>3.2.1"
