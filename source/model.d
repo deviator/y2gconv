@@ -76,8 +76,8 @@ struct YandexAdvRecord
 
     this( YandexAdvRecordRaw raw )
     {
-        advNo = raw.advNo.to!ulong;
-        phraseID = raw.phraseID.to!ulong;
+        advNo = raw.advNo.to!ulong.ifThrown(0);
+        phraseID = raw.phraseID.to!ulong.ifThrown(0);
         phrase = raw.phrase;
 
         advID = raw.advID.to!ulong;
@@ -171,11 +171,13 @@ struct PhrasePair
 class Model
 {
 private:
+
     enum max_title_len = 30;
     enum max_text_len = 38;
     enum bad_url_query = "utm"d;
 
-    YandexAdvRecord[] src;
+    dstring[][] src_raw;
+    dstring[][] src;
 
     WorkData[dstring] gad;
 
@@ -183,21 +185,48 @@ private:
 
     string table_name;
 
+    ulong phrase_index, title_index, text_index, url_index;
+
 public:
-    void readYTable( string file, ulong skip=10 )
+
+    void readYTable( string file, ulong skip )
     {
         dlglogger.infof( "read '%s' file, skip %d first lines", file, skip );
         table_name = file;
-        auto data = csvReader!YandexAdvRecordRaw( readText(file).splitLines[skip..$].join("\n"), ',', '"' );
-        src = data.map!(a=>YandexAdvRecord(a)).array;
-
-        proc();
+        src_raw = [];
+        foreach( rec; csvReader!dstring(readText(file)) )
+            src_raw ~= rec.array;
+        setSkip( skip );
     }
     
     string basename="", fmtpostfix="_y2g_tbl%d.csv";
 
+    void setSkip( ulong skip )
+    {
+        src = src_raw[skip..$];
+    }
+
+    void setIndexes( ulong phrase, ulong title, ulong text, ulong url )
+    {
+        dlglogger.infof( "set columns: %d %d %d %d", phrase, title, text, url );
+        phrase_index = phrase;
+        title_index = title;
+        text_index = text;
+        url_index = url;
+    }
+
+    dstring[] getSourceLine( ulong k=0 )
+    {
+        return [ src[k][phrase_index],
+                 src[k][title_index],
+                 src[k][text_index],
+                 src[k][url_index] ];
+    }
+
     void writeGTables()
     {
+        proc();
+
         if( basename == "" )
             basename = table_name[0..$-4];
 
@@ -240,7 +269,7 @@ protected:
     {
         foreach( rec; src )
         {
-            auto r = splitWords( rec.phrase );
+            auto r = splitWords( rec[phrase_index] );
             auto kw = r[0].join(" ");
             auto nw = r[1];
 
@@ -248,7 +277,9 @@ protected:
                 gad[kw] = WorkData(kw);
 
             gad[kw].appendNegWords( nw );
-            gad[kw].data ~= WorkData.Adv( rec.title, rec.text, rec.url );
+            gad[kw].data ~= WorkData.Adv( rec[title_index],
+                                          rec[text_index],
+                                          rec[url_index] );
         }
     }
 
@@ -276,7 +307,6 @@ protected:
             ph_pairs ~= buf;
         }
     }
-
 
     void writeKeyWordsWithNegWords( File f )
     {

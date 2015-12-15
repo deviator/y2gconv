@@ -11,6 +11,6 @@ void main( string[] args )
 void testModel()
 {
     auto mdl = new Model;
-    mdl.readYTable( "test_table.csv" );
+    mdl.readYTable( "test_table.csv", 10 );
     mdl.writeGTables();
 }
