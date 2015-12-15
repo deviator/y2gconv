@@ -10,6 +10,9 @@
   </object>
   <object class="GtkTextBuffer" id="bufresultinfo"/>
   <object class="GtkWindow" id="mwindow">
+    <property name="name">8</property>
+    <property name="width_request">550</property>
+    <property name="height_request">250</property>
     <property name="can_focus">False</property>
     <child>
       <object class="GtkBox" id="box1">
@@ -27,7 +30,7 @@
             <property name="can_focus">False</property>
             <property name="spacing">20</property>
             <child>
-              <object class="GtkButton" id="button1">
+              <object class="GtkButton" id="btnopen">
                 <property name="label" translatable="yes">выбрать файл</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
@@ -93,7 +96,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="button2">
+              <object class="GtkButton" id="btnsave">
                 <property name="label" translatable="yes">разбить файл</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>

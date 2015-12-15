@@ -12,6 +12,17 @@ import std.algorithm;
 import std.exception;
 import std.experimental.logger;
 
+class DelegateLogger : Logger
+{
+    void delegate(string) @trusted dlg;
+    this( LogLevel lv ) @safe { super(lv); }
+    override void writeLogMsg(ref LogEntry l) { if( dlg ) dlg( l.msg ); }
+}
+
+DelegateLogger dlglogger;
+
+static this() { dlglogger = new DelegateLogger( LogLevel.all ); }
+
 struct YandexAdvRecordRaw
 {
     dstring advNo;    // Номер объявления
@@ -74,11 +85,11 @@ struct YandexAdvRecord
         title = raw.title;
         text = raw.text;
 
-        infof( raw.title_len.to!uint.ifThrown(0) != title.walkLength,
+        dlglogger.infof( raw.title_len.to!uint.ifThrown(0) != title.walkLength,
                 "title length mismatch: '%s'(stored) %s(real)",
                 raw.title_len, title.length );
 
-        infof( raw.text_len.to!uint.ifThrown(0) != text.length,
+        dlglogger.infof( raw.text_len.to!uint.ifThrown(0) != text.length,
                 "text length mismatch: '%s'(stored) %s(real)",
                 raw.text_len, text.length );
 
@@ -170,32 +181,60 @@ private:
 
     PhrasePair[] ph_pairs;
 
+    string table_name;
+
 public:
     void readYTable( string file, ulong skip=10 )
     {
+        dlglogger.infof( "read '%s' file, skip %d first lines", file, skip );
+        table_name = file;
         auto data = csvReader!YandexAdvRecordRaw( readText(file).splitLines[skip..$].join("\n"), ',', '"' );
         src = data.map!(a=>YandexAdvRecord(a)).array;
+
+        proc();
     }
+    
+    string basename="", fmtpostfix="_y2g_tbl%d.csv";
+
+    void writeGTables()
+    {
+        if( basename == "" )
+            basename = table_name[0..$-4];
+
+        auto tbl = getGTablesNames();
+
+        {
+            auto f1 = File( tbl[0], "w" ); scope(exit) f1.close();
+            writeKeyWordsWithNegWords( f1 );
+        }
+
+        {
+            auto f2 = File( tbl[1], "w" ); scope(exit) f2.close();
+            writeKeyWordsWithAdv( f2 );
+        }
+
+        {
+            auto f3 = File( tbl[2], "w" ); scope(exit) f3.close();
+            writeKeyWordsMatches( f3 );
+        }
+    }
+
+    string[] getGTablesNames()
+    {
+        return [
+            format( basename ~ fmtpostfix, 1 ),
+            format( basename ~ fmtpostfix, 2 ),
+            format( basename ~ fmtpostfix, 3 ),
+        ];
+    }
+
+protected:
 
     void proc()
     {
         gadFill();
         phPairsFill();
     }
-
-    void writeGTables( string basename, string fmt="_y2g_tbl%d.csv" )
-    {
-        auto f1 = File( format( basename ~ fmt, 1 ), "w" ); scope(exit) f1.close();
-        writeKeyWordsWithNegWords( f1 );
-
-        auto f2 = File( format( basename ~ fmt, 2 ), "w" ); scope(exit) f2.close();
-        writeKeyWordsWithAdv( f2 );
-
-        auto f3 = File( format( basename ~ fmt, 3 ), "w" ); scope(exit) f3.close();
-        writeKeyWordsMatches( f3 );
-    }
-
-protected:
 
     void gadFill()
     {
