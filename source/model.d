@@ -168,6 +168,18 @@ struct PhrasePair
     }
 }
 
+dstring str2csv( dstring[] list, dchar delim=',', dchar esc='"' )
+{
+    dstring[] result;
+    foreach( value; list )
+    {
+        auto buf = value.tr([esc],[esc,esc]);
+        if( value.canFind(delim) ) buf = esc ~ buf ~ esc;
+        result ~= buf;
+    }
+    return result.join(",");
+}
+
 class Model
 {
 private:
@@ -289,7 +301,7 @@ protected:
 
         foreach( w; phrase.split(" "d) )
         {
-            if( w[0] == '+' ) kw ~= "!"d ~ w[1..$];
+            if( w[0] == '+' ) kw ~= w[1..$];
             else if( w[0] == '-' ) nw ~= w[1..$];
             else kw ~= w;
         }
@@ -312,16 +324,16 @@ protected:
     {
         foreach( kw, item; gad )
             foreach( nw; item.neg_words.keys() )
-                f.writefln( "%(%s,%)", [kw, nw] );
+                f.writeln( str2csv( [kw, nw] ) );
     }
 
     void writeKeyWordsWithAdv( File f )
     {
         foreach( kw, item; gad )
             foreach( adv; item.data )
-                f.writefln( "%(%s,%)", [kw] ~ procTitle( adv.title ) ~
-                                              procText( adv.text ) ~
-                                              procUrl( adv.url ) );
+                f.writeln( str2csv( [kw] ~ procTitle( adv.title ) ~
+                                           procText( adv.text ) ~
+                                           procUrl( adv.url ) ) );
     }
 
     void writeKeyWordsMatches( File f )
@@ -331,31 +343,36 @@ protected:
         {
             // проходим по списку совпадений
             foreach( m; phrase.matches )
-                f.writeln( phrase.src, ", ", m ); // выводим на экран через запятую
+                f.writeln( str2csv( [ phrase.src, m ] ) ); // выводим на экран через запятую
         }
     }
 
-    dstring[2] procTitle( dstring orig )
+    dstring[] testLength( dstring v, ulong size )
     {
-        return [ orig, orig.walkLength > max_title_len ? "!!!"d : ""d ];
+        return [ format( "%d"d, v.walkLength ),
+                 v.walkLength > size ? "!!!"d : ""d ];
     }
 
-    dstring[3] procText( dstring orig )
-    {
-        auto kw = orig.tr("!",".").split(" ");
+    dstring[] procTitle( dstring orig )
+    { return [ orig ] ~ testLength( orig, max_title_len ); }
 
-        size_t p = 0;
+    dstring[] procText( dstring orig )
+    {
+        auto ep = orig.split("!");
+        if( ep.length > 2 ) ep = [ ep[0..$-1].join("."), ep[$-1] ];
+        assert( ep.length <= 2 );
+        auto w = ep.join("!").split(" ");
+
+        size_t p = 1;
         size_t sum = 0;
 
-        while( sum + kw[p].walkLength < max_text_len )
-        {
+        while( p < w.length && w[0..p+1].join(" "d).walkLength < max_text_len )
             p++;
-            sum += kw[p].walkLength;
-        }
 
-        auto p1 = kw[0..p].join(" ");
-        auto p2 = kw[p..$].join(" ");
-        return [ p1, p2, p2.walkLength > max_text_len ? "!!!"d : ""d ];
+        auto p1 = w[0..p].join(" "d);
+        auto p2 = w[p..$].join(" "d);
+        return [ p1 ] ~ testLength( p1, max_text_len ) ~
+               [ p2 ] ~ testLength( p2, max_text_len );
     }
 
     dstring procUrl( dstring orig )

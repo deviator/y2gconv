@@ -3,6 +3,7 @@ module view;
 import std.stdio;
 import std.string;
 import std.conv;
+import std.exception;
 
 import gtk.Widget;
 import gtk.Main;
@@ -139,14 +140,20 @@ class UI
 
         rl.clear();
 
+        auto errstr = "<error encoding>";
+
         rl.setValuesv( rl.createIter(), [0,1],
-                [ new Value( "фраза" ), new Value( values[0].to!string ) ] );
+                [ new Value( "фраза" ),
+                  new Value( values[0].to!string.ifThrown(errstr) ) ] );
         rl.setValuesv( rl.createIter(), [0,1],
-                [ new Value( "заголовок" ), new Value( values[1].to!string ) ] );
+                [ new Value( "заголовок" ),
+                  new Value( values[1].to!string.ifThrown(errstr) ) ] );
         rl.setValuesv( rl.createIter(), [0,1],
-                [ new Value( "текст" ), new Value( values[2].to!string ) ] );
+                [ new Value( "текст" ),
+                  new Value( values[2].to!string.ifThrown(errstr) ) ] );
         rl.setValuesv( rl.createIter(), [0,1],
-                [ new Value( "ссылка" ), new Value( values[3].to!string ) ] );
+                [ new Value( "ссылка" ),
+                  new Value( values[3].to!string.ifThrown(errstr) ) ] );
     }
 }
 
